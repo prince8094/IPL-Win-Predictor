@@ -1,25 +1,24 @@
 # IPL Win Predictor
 
-An end-to-end machine learning project that estimates a team's probability of winning an IPL match in real time, based on the current state of play. Rather than just predicting a final winner, it recalculates the win probability after every ball using score, wickets, overs, target, and run rate.
+![Python](https://img.shields.io/badge/Python-3.11+-blue?style=flat-square&logo=python)
+![Streamlit](https://img.shields.io/badge/Streamlit-Web_App-red?style=flat-square&logo=streamlit)
+![scikit-learn](https://img.shields.io/badge/scikit--learn-Logistic_Regression-orange?style=flat-square&logo=scikitlearn)
 
-**Live demo:** (add after deployment)
+**Live app:** (add after deployment)
 
 ## Overview
 
-The chance of a team winning a cricket match shifts constantly — a wicket, a boundary, or a maiden over can swing things noticeably. A single prediction made before the match starts doesn't capture any of that. This project trains a model on ball-by-ball data so it can produce an updated probability at any point in the innings, based on:
+This is a machine learning app that estimates a team's live win probability during an IPL match, updated ball by ball. Rather than just picking a winner at the end, it tracks how the probability shifts as the match situation changes — current score, wickets in hand, overs bowled, target, run rate, and required run rate.
 
-- Current score and target
-- Overs completed and wickets remaining
-- Current run rate and required run rate
-- Batting team, bowling team, and venue
+Win probability in cricket isn't static. It moves with every wicket, boundary, and dot ball, and depends on the interaction between score, wickets remaining, overs left, target, current run rate, required run rate, and the two teams and venue involved. The goal here was to model that continuously rather than just classify the final result.
 
 ## Dataset
 
-Built on historical IPL ball-by-ball data: `deliveries.csv` and `matches.csv`. Between them they cover match metadata, every delivery bowled, runs scored, wickets, venue, teams, and final results.
+Built from historical IPL ball-by-ball data — `deliveries.csv` and `matches.csv` — covering match details, every delivery bowled, runs, wickets, venue, teams, and final results.
 
 ## Feature engineering
 
-Raw ball-by-ball data isn't directly useful for this — the model needs match-state features that actually change meaning as the game progresses:
+Raw ball-by-ball data isn't directly useful for this, so the following features were derived for each point in the match:
 
 - Runs left
 - Balls left
@@ -27,48 +26,43 @@ Raw ball-by-ball data isn't directly useful for this — the model needs match-s
 - Current run rate (CRR)
 - Required run rate (RRR)
 - Target score
-- Batting team, bowling team, host city
+- Batting team / bowling team
+- Host city
 
-These were engineered from the raw deliveries data and gave a noticeably better signal than feeding the model raw columns.
+These carry far more predictive signal than the raw columns on their own.
 
 ## Pipeline
 
-The preprocessing and training pipeline is built with scikit-learn's `Pipeline` and `ColumnTransformer`: categorical fields (teams, city) go through one-hot encoding, and the encoded features feed into a logistic regression classifier that outputs a win probability rather than just a label.
+The full preprocessing and training flow is a single Scikit-Learn pipeline: input data goes through a `ColumnTransformer` with one-hot encoding for categorical fields, then into a logistic regression classifier that outputs a win probability.
 
-## Model choice: logistic regression over Random Forest
+## Model selection
 
-Two models were tested. A Random Forest classifier reached close to 99% accuracy, but its output probabilities were a problem in practice — it would frequently show something like 98% to 2% even in matches that were still genuinely close. High accuracy, badly calibrated probabilities: fine for picking a winner, unusable for a live win-probability display.
+Two models were tried.
 
-Logistic regression came in lower on accuracy, at 82.37%, but its probability estimates were far more realistic. They moved gradually as the match state changed instead of jumping to near-certainty after a single event, which matters a lot more than raw accuracy for a tool meant to be watched ball by ball. That's why logistic regression is the model actually deployed.
+**Random Forest** hit close to 99% accuracy in testing, but the probabilities it produced weren't usable. It would frequently show something like Team A at 98% and Team B at 2% in situations where the match was still genuinely close. High accuracy, badly calibrated — the kind of overconfidence you don't want in a live prediction tool.
+
+**Logistic Regression** came in lower on raw accuracy but produced probabilities that actually behaved sensibly — they moved gradually as the match developed instead of snapping to extremes after one good over. Since the point of the app is to show a believable probability after every ball, not just to be right at the final whistle, this was the deciding factor. Logistic Regression is the model that shipped.
 
 | Metric | Value |
 |---|---|
 | Model | Logistic Regression |
 | Accuracy | 82.37% |
 | Encoding | OneHotEncoder |
-| Pipeline | scikit-learn Pipeline |
+| Pipeline | Scikit-Learn Pipeline |
 | Probability output | Yes |
 | Deployment | Streamlit |
 
 ## Tech stack
 
-Python, Pandas, NumPy, scikit-learn, Streamlit, Pickle, Git, GitHub.
+Python, Pandas, NumPy, Scikit-Learn, Streamlit, Pickle, Git, GitHub.
 
 ## Features
 
-- Live win probability that updates with match state
-- Interactive Streamlit UI with team and city selection
-- Manual input of current match situation
+- Live win probability estimation
+- Team and city selection
+- Match situation input (score, overs, wickets, target)
 - Probability visualization
-- scikit-learn pipeline handling preprocessing end to end
-
-## Challenges
-
-**Feature engineering.** The raw dataset alone wasn't predictive enough. Deriving match-state features like runs left, balls left, and required run rate made the biggest difference in prediction quality.
-
-**Choosing between accuracy and calibration.** Random Forest's near-99% accuracy was tempting, but its overconfident probabilities made it a poor fit for a tool meant to show believable in-match odds. Prioritizing calibration over raw accuracy meant going with the weaker-on-paper logistic regression model instead.
-
-**Deployment friction.** Getting the app running on Streamlit surfaced a handful of version-compatibility issues — mismatches between scikit-learn versions, the pickled model, and a deprecated OneHotEncoder API, along with the usual Python version differences.
+- Streamlit UI
 
 ## Project structure
 
@@ -92,17 +86,26 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
+## Notable problems along the way
+
+**Choosing accuracy over calibration would have been the easy mistake.** Random Forest looked better on paper at nearly 99% accuracy, but its probability outputs were unreliable for anything live. Prioritizing calibration over raw accuracy is what led to Logistic Regression instead.
+
+**Feature engineering mattered more than model choice.** Runs left, balls left, and the run-rate features made a bigger difference to prediction quality than swapping models did.
+
+**Deployment had the usual friction.** Getting the pickled model to run cleanly on Streamlit meant sorting out scikit-learn version mismatches, a deprecated package, changes to the OneHotEncoder API, and general dependency drift between the training and deployment environments.
+
 ## Results
 
-The deployed model produces win probabilities that shift realistically as a match unfolds, which makes it more useful for live match tracking than a model optimized purely for classification accuracy.
+The deployed model produces win probabilities that move realistically as a match unfolds, which matters more for live match analysis than squeezing out a higher classification accuracy would.
 
-## Future improvements
+## Possible next steps
 
-- Incorporate player statistics and toss impact
-- Factor in weather conditions
-- Try XGBoost or LightGBM with explicit probability calibration
-- Explore sequence models for ball-by-ball prediction
-- Integrate a live data feed (Cricbuzz / CricAPI) for real-time predictions during a match
+- Player-level statistics as features
+- Toss impact
+- Weather conditions
+- XGBoost/LightGBM with explicit probability calibration
+- Sequence models for ball-by-ball prediction
+- Live data via Cricbuzz or CricAPI
 
 ## Author
 
