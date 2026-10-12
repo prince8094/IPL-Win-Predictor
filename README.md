@@ -4,7 +4,7 @@
 ![Streamlit](https://img.shields.io/badge/Streamlit-Web_App-red?style=flat-square&logo=streamlit)
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-Logistic_Regression-orange?style=flat-square&logo=scikitlearn)
 
-**Live app:** (add after deployment)
+**Live app:** (https://ipl-win-predictor-prince.streamlit.app/)
 
 ## Overview
 
